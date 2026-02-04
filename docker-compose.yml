@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: arduino_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: arduino_user
+      POSTGRES_PASSWORD: arduino_pass
+      POSTGRES_DB: arduino_store
+    ports:
+      - "5432:5432"
+    volumes:
+      - arduino_pgdata:/var/lib/postgresql/data
+
+volumes:
+  arduino_pgdata:

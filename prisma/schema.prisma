@@ -1,0 +1,415 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleName {
+  ADMIN
+  VENDEDOR
+  BODEGA
+}
+
+enum SaleStatus {
+  ABIERTA
+  CERRADA
+}
+
+enum PurchaseStatus {
+  REGISTRADA
+  RECIBIDA
+  ANULADA
+}
+
+enum OrderStatus {
+  BORRADOR
+  CONFIRMADO
+  EMPACADO
+  ENVIADO
+  ENTREGADO
+  CANCELADO
+}
+
+enum OrderChannel {
+  WHATSAPP
+  MOSTRADOR
+}
+
+enum PaymentMethod {
+  EFECTIVO
+  TRANSFERENCIA
+  TARJETA
+}
+
+enum MovementType {
+  ENTRADA
+  SALIDA
+  AJUSTE
+  DEVOLUCION
+}
+
+enum ReturnCondition {
+  NUEVO
+  USADO
+  DEFECTUOSO
+}
+
+enum ShippingType {
+  ENVIO
+  RETIRO
+}
+
+enum ShippingStatus {
+  PENDIENTE
+  EN_RUTA
+  ENTREGADO
+}
+
+model Role {
+  id        Int      @id @default(autoincrement())
+  name      RoleName @unique
+  users     User[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("roles")
+}
+
+model User {
+  id           Int    @id @default(autoincrement())
+  roleId       Int
+  role         Role   @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  name         String
+  username     String @unique
+  passwordHash String
+  active       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchases Purchase[]
+  sales     Sale[]
+  returns   ProductReturn[]
+
+  @@map("users")
+}
+
+model Category {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+  active      Boolean @default(true)
+
+  products    Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("categories")
+}
+
+model Product {
+  id          Int     @id @default(autoincrement())
+  categoryId  Int
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  name        String
+  description String?
+  active      Boolean @default(true)
+
+  skus        Sku[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@map("products")
+}
+
+model Sku {
+  id             Int     @id @default(autoincrement())
+  productId      Int
+  product        Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  skuCode        String  @unique
+  brand          String?
+  version        String?
+  isOriginal     Boolean @default(false)
+  voltage        String?
+  referencePrice Decimal? @db.Numeric(12,2)
+
+  active         Boolean @default(true)
+
+  saleItems      SaleItem[]
+  purchaseItems  PurchaseItem[]
+  orderItems     OrderItem[]
+  returnItems    ReturnItem[]
+  movements      InventoryMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@map("skus")
+}
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  fullName  String
+  phone     String?  @unique
+  email     String?
+  cedulaRuc String?  @unique
+  address   String?
+  active    Boolean  @default(true)
+
+  sales     Sale[]
+  orders    Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("customers")
+}
+
+model Supplier {
+  id       Int     @id @default(autoincrement())
+  name     String
+  phone    String?
+  email    String? @unique
+  address  String?
+  active   Boolean @default(true)
+
+  purchases Purchase[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("suppliers")
+}
+
+model Purchase {
+  id         Int            @id @default(autoincrement())
+  supplierId Int
+  supplier   Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  createdById Int
+  createdBy   User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  status     PurchaseStatus @default(REGISTRADA)
+  notes      String?
+
+  items      PurchaseItem[]
+  movements  InventoryMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([supplierId])
+  @@index([createdById])
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id         Int     @id @default(autoincrement())
+  purchaseId Int
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+
+  skuId      Int
+  sku        Sku     @relation(fields: [skuId], references: [id], onDelete: Restrict)
+
+  quantity   Int
+  unitCost   Decimal @db.Numeric(12,2)
+
+  createdAt DateTime @default(now())
+
+  @@index([purchaseId])
+  @@index([skuId])
+  @@map("purchase_items")
+}
+
+model Order {
+  id         Int         @id @default(autoincrement())
+  customerId Int?
+  customer   Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  channel    OrderChannel @default(WHATSAPP)
+  status     OrderStatus  @default(BORRADOR)
+  notes      String?
+
+  items      OrderItem[]
+  shipping   Shipping?
+
+  sale       Sale?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        Int   @id @default(autoincrement())
+  orderId   Int
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  skuId     Int
+  sku       Sku   @relation(fields: [skuId], references: [id], onDelete: Restrict)
+
+  quantity  Int
+  estimatedPrice Decimal? @db.Numeric(12,2)
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([skuId])
+  @@map("order_items")
+}
+
+model Shipping {
+  id        Int          @id @default(autoincrement())
+  orderId   Int          @unique
+  order     Order        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  type      ShippingType @default(ENVIO)
+  status    ShippingStatus @default(PENDIENTE)
+
+  address   String?
+  reference String?
+  contact   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("shipping")
+}
+
+model Sale {
+  id          Int       @id @default(autoincrement())
+  customerId  Int?
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  orderId     Int?      @unique
+  order       Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  createdById Int
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  status      SaleStatus @default(ABIERTA)
+  notes       String?
+
+  items       SaleItem[]
+  payments    Payment[]
+  movements   InventoryMovement[]
+  returns     ProductReturn[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([createdById])
+  @@index([status])
+  @@map("sales")
+}
+
+model SaleItem {
+  id        Int  @id @default(autoincrement())
+  saleId    Int
+  sale      Sale @relation(fields: [saleId], references: [id], onDelete: Restrict)
+
+  skuId     Int
+  sku       Sku  @relation(fields: [skuId], references: [id], onDelete: Restrict)
+
+  quantity  Int
+  unitPrice Decimal @db.Numeric(12,2)
+  discount  Decimal @default(0) @db.Numeric(12,2)
+
+  createdAt DateTime @default(now())
+
+  @@index([saleId])
+  @@index([skuId])
+  @@map("sale_items")
+}
+
+model Payment {
+  id        Int  @id @default(autoincrement())
+  saleId    Int
+  sale      Sale @relation(fields: [saleId], references: [id], onDelete: Restrict)
+
+  method    PaymentMethod
+  amount    Decimal @db.Numeric(12,2)
+  reference String?
+
+  createdAt DateTime @default(now())
+
+  @@index([saleId])
+  @@map("payments")
+}
+
+model ProductReturn {
+  id         Int @id @default(autoincrement())
+  saleId     Int
+  sale       Sale @relation(fields: [saleId], references: [id], onDelete: Restrict)
+
+  createdById Int
+  createdBy   User @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  reason     String?
+
+  items      ReturnItem[]
+  movements  InventoryMovement[]
+
+  createdAt DateTime @default(now())
+
+  @@index([saleId])
+  @@map("returns")
+}
+
+model ReturnItem {
+  id        Int @id @default(autoincrement())
+  returnId  Int
+  return    ProductReturn @relation(fields: [returnId], references: [id], onDelete: Restrict)
+
+  skuId     Int
+  sku       Sku @relation(fields: [skuId], references: [id], onDelete: Restrict)
+
+  quantity  Int
+  condition ReturnCondition @default(NUEVO)
+
+  createdAt DateTime @default(now())
+
+  @@index([returnId])
+  @@index([skuId])
+  @@map("return_items")
+}
+
+model InventoryMovement {
+  id         Int @id @default(autoincrement())
+  skuId      Int
+  sku        Sku @relation(fields: [skuId], references: [id], onDelete: Restrict)
+
+  type       MovementType
+  quantity   Int
+  reason     String?
+
+  purchaseId Int?
+  purchase   Purchase? @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+
+  saleId     Int?
+  sale       Sale? @relation(fields: [saleId], references: [id], onDelete: SetNull)
+
+  returnId   Int?
+  return     ProductReturn? @relation(fields: [returnId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([skuId, createdAt])
+  @@index([type, createdAt])
+  @@map("inventory_movements")
+}
