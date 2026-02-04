@@ -4,7 +4,7 @@
   "private": true,
   "description": "Backend V1 para tienda Arduino/electrónica (NestJS + Prisma + Postgres)",
   "scripts": {
-    "start:dev": "nest start --watch",
+    "dev": "nest start --watch",
     "build": "nest build",
     "start:prod": "node dist/main.js",
     "lint": "eslint .",
