@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum RoleName {
@@ -141,7 +140,7 @@ model Sku {
   version        String?
   isOriginal     Boolean @default(false)
   voltage        String?
-  referencePrice Decimal? @db.Numeric(12,2)
+  referencePrice Decimal? @db.Decimal(12,2)
 
   active         Boolean @default(true)
 
@@ -223,7 +222,7 @@ model PurchaseItem {
   sku        Sku     @relation(fields: [skuId], references: [id], onDelete: Restrict)
 
   quantity   Int
-  unitCost   Decimal @db.Numeric(12,2)
+  unitCost   Decimal @db.Decimal(12,2)
 
   createdAt DateTime @default(now())
 
@@ -263,7 +262,7 @@ model OrderItem {
   sku       Sku   @relation(fields: [skuId], references: [id], onDelete: Restrict)
 
   quantity  Int
-  estimatedPrice Decimal? @db.Numeric(12,2)
+  estimatedPrice Decimal? @db.Decimal(12,2)
 
   createdAt DateTime @default(now())
 
@@ -327,8 +326,8 @@ model SaleItem {
   sku       Sku  @relation(fields: [skuId], references: [id], onDelete: Restrict)
 
   quantity  Int
-  unitPrice Decimal @db.Numeric(12,2)
-  discount  Decimal @default(0) @db.Numeric(12,2)
+  unitPrice Decimal @db.Decimal(12,2)
+  discount  Decimal @default(0) @db.Decimal(12,2)
 
   createdAt DateTime @default(now())
 
@@ -343,7 +342,7 @@ model Payment {
   sale      Sale @relation(fields: [saleId], references: [id], onDelete: Restrict)
 
   method    PaymentMethod
-  amount    Decimal @db.Numeric(12,2)
+  amount    Decimal @db.Decimal(12,2)
   reference String?
 
   createdAt DateTime @default(now())
